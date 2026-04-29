@@ -45,3 +45,13 @@ Date: 2026-04-28
 2. Add SIEM integration for security events.
 3. Add DB-at-rest encryption at infrastructure level.
 4. Add WAF and bot management at edge.
+
+## Vercel Required Environment Variables
+
+- `APP_ENCRYPTION_KEY` (minimum 32 characters)
+- `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_SITE_URL`
+- `CORS_ORIGINS`
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_EXPIRES_IN`
+- `DATABASE_URL`

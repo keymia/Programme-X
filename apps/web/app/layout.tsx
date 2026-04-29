@@ -5,10 +5,18 @@ import type { Metadata } from "next";
 import { LanguageSwitcher } from "./components/language-switcher";
 import { LocalizedNav } from "./components/localized-nav";
 
+function safeMetadataBase() {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL;
+  try {
+    if (raw && /^https?:\/\//i.test(raw)) return new URL(raw);
+  } catch {}
+  return new URL("http://localhost:3000");
+}
+
 export const metadata: Metadata = {
   title: "Site Demo",
   description: "Institutional SaaS platform for mentorship, matching, events and community leadership.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: safeMetadataBase(),
   openGraph: {
     title: "Site Demo",
     description: "Institutional mentorship and leadership platform.",
