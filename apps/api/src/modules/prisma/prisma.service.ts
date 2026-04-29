@@ -16,7 +16,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             connectionString
           })
         }
-      : undefined;
+      : {};
     super(options);
     this.hasDatabaseUrl = hasDatabaseUrl;
   }
