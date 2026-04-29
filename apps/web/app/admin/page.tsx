@@ -1,6 +1,7 @@
  "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { dict, type Lang } from "../i18n";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -588,9 +589,9 @@ const normalizeDashboardData = (value: unknown): DashboardData | null => {
 };
 
 export default function AdminPage() {
+  const router = useRouter();
   const [lang, setLang] = useState<Lang>("fr");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [loginEmail, setLoginEmail] = useState("admin@blackmedcollective.com");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
@@ -615,6 +616,15 @@ export default function AdminPage() {
   const [modalEmail, setModalEmail] = useState("");
   const [modalBusy, setModalBusy] = useState(false);
   const [modalError, setModalError] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteCategory, setDeleteCategory] = useState<"mentor" | "mentee">("mentor");
+  const [deleteId, setDeleteId] = useState<string>("");
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addCategory, setAddCategory] = useState<"mentor" | "mentee">("mentor");
+  const [addName, setAddName] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [mentorRowsVisible, setMentorRowsVisible] = useState(5);
+  const [menteeRowsVisible, setMenteeRowsVisible] = useState(5);
   const t = dict[lang].admin;
   const guide = contentGuides[lang][contentType];
   const editorText = contentEditorCopy[lang];
@@ -716,9 +726,8 @@ export default function AdminPage() {
     window.open(`${apiBase}/api/v1/admin/export`, "_blank");
   };
 
-  const loginAdmin = async (event?: React.FormEvent<HTMLFormElement>) => {
-    event?.preventDefault();
-    if (!loginEmail || !loginPassword) return;
+  const loginAdmin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setLoginBusy(true);
     setLoginError("");
     try {
@@ -727,12 +736,12 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, password: loginPassword })
       });
-      if (!response.ok) throw new Error(lang === "fr" ? "Connexion échouée." : "Login failed.");
+      if (!response.ok) throw new Error(lang === "fr" ? "Identifiants invalides." : "Invalid credentials.");
       const payload = await response.json();
-      localStorage.setItem("adminAccessToken", payload.accessToken || "");
+      if (!payload?.accessToken) throw new Error(lang === "fr" ? "Connexion impossible." : "Login failed.");
+      localStorage.setItem("adminAccessToken", payload.accessToken);
       if (payload.refreshToken) localStorage.setItem("adminRefreshToken", payload.refreshToken);
-      setIsAuthenticated(Boolean(payload.accessToken));
-      setIsLoginOpen(false);
+      setIsAuthenticated(true);
       setLoginPassword("");
       setContentNotice(lang === "fr" ? "Connecté." : "Signed in.");
     } catch (error) {
@@ -743,13 +752,16 @@ export default function AdminPage() {
   };
 
   const logoutAdmin = () => {
+    if (typeof window === "undefined") return;
     localStorage.removeItem("adminAccessToken");
     localStorage.removeItem("adminRefreshToken");
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
+    localStorage.removeItem("bmc_admin_token");
+    localStorage.removeItem("bmc_admin_refresh_token");
     setIsAuthenticated(false);
-    setIsLoginOpen(false);
     setContentNotice(lang === "fr" ? "Déconnecté." : "Signed out.");
+    router.push("/");
   };
 
   const openRegistrationModal = (category: "mentor" | "mentee", row: { id?: string; name: string; email: string }) => {
@@ -785,11 +797,18 @@ export default function AdminPage() {
     }
   };
 
-  const deleteRegistrationRow = async (category: "mentor" | "mentee", id?: string) => {
+  const askDeleteRegistration = (category: "mentor" | "mentee", id?: string) => {
     if (!id) return;
+    setDeleteCategory(category);
+    setDeleteId(id);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDeleteRegistration = async () => {
+    if (!deleteId) return;
     setContentNotice("");
     try {
-      const response = await fetch(`${apiBase}/api/v1/admin/registrations/${category}/${id}`, {
+      const response = await fetch(`${apiBase}/api/v1/admin/registrations/${deleteCategory}/${deleteId}`, {
         method: "DELETE",
         headers: getAuthHeaders()
       });
@@ -797,6 +816,54 @@ export default function AdminPage() {
         if (response.status === 401) throw new Error(lang === "fr" ? "Session expirée. Reconnectez-vous." : "Session expired. Please sign in again.");
         throw new Error(lang === "fr" ? "Suppression impossible." : "Delete failed.");
       }
+      setDeleteModalOpen(false);
+      await refreshDashboard();
+    } catch (error) {
+      setContentNotice(error instanceof Error ? error.message : lang === "fr" ? "Erreur réseau." : "Network error.");
+    }
+  };
+
+  const openAddModal = (category: "mentor" | "mentee") => {
+    setAddCategory(category);
+    setAddName("");
+    setAddEmail("");
+    setAddModalOpen(true);
+  };
+
+  const confirmAddRegistration = async () => {
+    if (!addName || !addEmail) return;
+    const basePayload =
+      addCategory === "mentor"
+        ? {
+            fullName: addName,
+            email: addEmail,
+            level: "12e année",
+            expertise: "Mentorat",
+            language: "fr",
+            city: "Montreal",
+            region: "QC",
+            availability: "Soirs",
+            targetSpecialty: "Médecine générale",
+            mentorCapacity: 3
+          }
+        : {
+            fullName: addName,
+            email: addEmail,
+            academicLevel: "12e année",
+            goals: "Orientation",
+            language: "fr",
+            region: "QC",
+            availability: "Soirs",
+            targetSpecialty: "Médecine générale"
+          };
+    try {
+      const response = await fetch(`${apiBase}/api/v1/admin/registrations/${addCategory}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(basePayload)
+      });
+      if (!response.ok) throw new Error(lang === "fr" ? "Ajout impossible." : "Create failed.");
+      setAddModalOpen(false);
       await refreshDashboard();
     } catch (error) {
       setContentNotice(error instanceof Error ? error.message : lang === "fr" ? "Erreur réseau." : "Network error.");
@@ -940,6 +1007,26 @@ export default function AdminPage() {
     }
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="page shell admin-page admin-login-page">
+        <section className="hero hero-compact admin-hero admin-login-hero">
+          <h1>{lang === "fr" ? "Connexion Admin" : "Admin Login"}</h1>
+          <form className="admin-login-form" onSubmit={loginAdmin}>
+            <label htmlFor="admin-email">{lang === "fr" ? "Email" : "Email"}</label>
+            <input id="admin-email" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required />
+            <label htmlFor="admin-password">{lang === "fr" ? "Mot de passe" : "Password"}</label>
+            <input id="admin-password" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
+            {loginError ? <p className="form-help" role="alert">{loginError}</p> : null}
+            <button className="btn" type="submit" disabled={loginBusy}>
+              {loginBusy ? (lang === "fr" ? "Connexion..." : "Signing in...") : (lang === "fr" ? "Se connecter" : "Sign in")}
+            </button>
+          </form>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="page shell admin-page">
       <div className="admin-layout">
@@ -967,41 +1054,9 @@ export default function AdminPage() {
           <button className="btn admin-export" onClick={downloadExcel} type="button">{t.export}</button>
           <div className="admin-auth-box">
             <p className="form-help">{isAuthenticated ? (lang === "fr" ? "Session active" : "Session active") : (lang === "fr" ? "Session inactive" : "Session inactive")}</p>
-            {!isAuthenticated ? (
-              <>
-                <button className="btn" type="button" onClick={() => setIsLoginOpen((v) => !v)}>
-                  {lang === "fr" ? "Connexion admin" : "Admin sign in"}
-                </button>
-                {isLoginOpen ? (
-                  <form className="admin-login-form" onSubmit={loginAdmin}>
-                    <label htmlFor="admin-login-email">{lang === "fr" ? "Email" : "Email"}</label>
-                    <input
-                      id="admin-login-email"
-                      type="email"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      required
-                    />
-                    <label htmlFor="admin-login-password">{lang === "fr" ? "Mot de passe" : "Password"}</label>
-                    <input
-                      id="admin-login-password"
-                      type="password"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      required
-                    />
-                    {loginError ? <p className="form-help" role="alert">{loginError}</p> : null}
-                    <button className="btn" type="submit" disabled={loginBusy}>
-                      {loginBusy ? (lang === "fr" ? "Connexion..." : "Signing in...") : (lang === "fr" ? "Se connecter" : "Sign in")}
-                    </button>
-                  </form>
-                ) : null}
-              </>
-            ) : (
-              <button className="btn alt" type="button" onClick={logoutAdmin}>
-                {lang === "fr" ? "Déconnexion" : "Sign out"}
-              </button>
-            )}
+            <button className="btn alt" type="button" onClick={logoutAdmin}>
+              {lang === "fr" ? "Déconnexion" : "Sign out"}
+            </button>
           </div>
         </aside>
 
@@ -1023,35 +1078,89 @@ export default function AdminPage() {
           ) : null}
 
           {activeView === "registrations" ? (
-            <section className="admin-view grid cols-2">
+            <section className="admin-view">
+              <section className="grid cols-3 admin-kpis" aria-label={t.recentRegistrations}>
+                <article className="card"><div className="kpi">{data?.totals.totalMentors ?? "--"}</div><p>{t.totalMentors}</p></article>
+                <article className="card"><div className="kpi">{data?.totals.totalMentees ?? "--"}</div><p>{t.totalMentees}</p></article>
+                <article className="card"><div className="kpi">{data?.totals.activeMatches ?? "--"}</div><p>{t.activeMatches}</p></article>
+              </section>
+              <h2 style={{ marginTop: 18 }}>{t.recentRegistrations}</h2>
+              <div className="grid cols-2">
+              <div className="registration-column">
               <article className="card">
-                <h2>{t.recentRegistrations}</h2>
                 <p>{t.mentors}</p>
                 <div className="content-list">
-                  {(data?.recentRegistrations.mentors || []).map((x) => (
+                  {(data?.recentRegistrations.mentors || []).slice(0, mentorRowsVisible).map((x) => (
                     <div className="content-row" key={`${x.id || x.email}-${x.createdAt}`}>
                       <span>{x.name} - {x.email}</span>
                       <button className="btn alt" type="button" onClick={() => openRegistrationModal("mentor", x)}>{lang === "fr" ? "Modifier" : "Edit"}</button>
-                      <button className="btn alt" type="button" onClick={() => deleteRegistrationRow("mentor", x.id)}>{lang === "fr" ? "Supprimer" : "Delete"}</button>
+                      <button className="btn alt" type="button" onClick={() => askDeleteRegistration("mentor", x.id)}>{lang === "fr" ? "Supprimer" : "Delete"}</button>
                     </div>
                   ))}
                 </div>
+                <div className="editor-actions">
+                  <button
+                    className="btn admin-more-btn"
+                    type="button"
+                    onClick={() => setMentorRowsVisible((v) => v + 5)}
+                    disabled={(data?.recentRegistrations.mentors?.length || 0) <= mentorRowsVisible}
+                  >
+                    {lang === "fr" ? "Afficher plus" : "Show more"}
+                  </button>
+                  <button
+                    className="btn alt admin-less-btn"
+                    type="button"
+                    onClick={() => setMentorRowsVisible(5)}
+                    disabled={mentorRowsVisible <= 5}
+                  >
+                    {lang === "fr" ? "Afficher moins" : "Show less"}
+                  </button>
+                </div>
+              </article>
+              <div className="registration-add-row">
+                <button className="btn" type="button" onClick={() => openAddModal("mentor")}>
+                  {lang === "fr" ? "Ajouter mentor" : "Add mentor"}
+                </button>
+              </div>
+              </div>
+              <div className="registration-column">
+              <article className="card">
                 <p>{t.mentees}</p>
                 <div className="content-list">
-                  {(data?.recentRegistrations.mentees || []).map((x) => (
+                  {(data?.recentRegistrations.mentees || []).slice(0, menteeRowsVisible).map((x) => (
                     <div className="content-row" key={`${x.id || x.email}-${x.createdAt}`}>
                       <span>{x.name} - {x.email}</span>
                       <button className="btn alt" type="button" onClick={() => openRegistrationModal("mentee", x)}>{lang === "fr" ? "Modifier" : "Edit"}</button>
-                      <button className="btn alt" type="button" onClick={() => deleteRegistrationRow("mentee", x.id)}>{lang === "fr" ? "Supprimer" : "Delete"}</button>
+                      <button className="btn alt" type="button" onClick={() => askDeleteRegistration("mentee", x.id)}>{lang === "fr" ? "Supprimer" : "Delete"}</button>
                     </div>
                   ))}
                 </div>
+                <div className="editor-actions">
+                  <button
+                    className="btn admin-more-btn"
+                    type="button"
+                    onClick={() => setMenteeRowsVisible((v) => v + 5)}
+                    disabled={(data?.recentRegistrations.mentees?.length || 0) <= menteeRowsVisible}
+                  >
+                    {lang === "fr" ? "Afficher plus" : "Show more"}
+                  </button>
+                  <button
+                    className="btn alt admin-less-btn"
+                    type="button"
+                    onClick={() => setMenteeRowsVisible(5)}
+                    disabled={menteeRowsVisible <= 5}
+                  >
+                    {lang === "fr" ? "Afficher moins" : "Show less"}
+                  </button>
+                </div>
               </article>
-              <article className="card">
-                <h2>{t.totalMentors}</h2>
-                <div className="kpi">{data?.totals.totalMentors ?? "--"}</div>
-                <p>{t.totalMentees}: {data?.totals.totalMentees ?? "--"}</p>
-              </article>
+              <div className="registration-add-row">
+                <button className="btn" type="button" onClick={() => openAddModal("mentee")}>
+                  {lang === "fr" ? "Ajouter mentoré" : "Add mentee"}
+                </button>
+              </div>
+              </div>
+              </div>
             </section>
           ) : null}
 
@@ -1077,26 +1186,79 @@ export default function AdminPage() {
             </div>
           ) : null}
 
+          {deleteModalOpen ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true">
+              <div className="modal-card">
+                <div className="modal-card-head">
+                  <h3>{lang === "fr" ? "Confirmer la suppression" : "Confirm deletion"}</h3>
+                </div>
+                <div className="modal-card-body">
+                  <p>{lang === "fr" ? "Voulez-vous vraiment supprimer cette inscription ?" : "Do you really want to delete this registration?"}</p>
+                  <div className="editor-actions">
+                    <button className="btn alt" type="button" onClick={() => setDeleteModalOpen(false)}>
+                      {lang === "fr" ? "Annuler" : "Cancel"}
+                    </button>
+                    <button className="btn" type="button" onClick={confirmDeleteRegistration}>
+                      {lang === "fr" ? "Confirmer" : "Confirm"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {addModalOpen ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true">
+              <div className="modal-card">
+                <div className="modal-card-head">
+                  <h3>{lang === "fr" ? "Ajouter une inscription" : "Add registration"}</h3>
+                  <span className="modal-chip">{addCategory}</span>
+                </div>
+                <div className="modal-card-body">
+                  <label>{lang === "fr" ? "Nom complet" : "Full name"}</label>
+                  <input value={addName} onChange={(e) => setAddName(e.target.value)} />
+                  <label>Email</label>
+                  <input value={addEmail} onChange={(e) => setAddEmail(e.target.value)} />
+                  <div className="editor-actions">
+                    <button className="btn alt" type="button" onClick={() => setAddModalOpen(false)}>
+                      {lang === "fr" ? "Annuler" : "Cancel"}
+                    </button>
+                    <button className="btn" type="button" onClick={confirmAddRegistration}>
+                      {lang === "fr" ? "Ajouter" : "Add"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {activeView === "analytics" ? (
             <div className="admin-view">
               <section className="grid cols-2">
-                <article className="card">
+                <article className="card analytics-card">
                   <h2>{t.chartTitle}</h2>
-                  <div style={{ display: "flex", alignItems: "end", gap: 10, height: 150 }}>
+                  <div className="analytics-chart">
                     {graph?.map((m) => (
-                      <div key={m.month} style={{ display: "flex", gap: 4, alignItems: "end" }}>
-                        <div title={`${t.mentors} ${m.month}`} style={{ width: 12, height: m.mentorHeight, background: "#c9a96b" }} />
-                        <div title={`${t.mentees} ${m.month}`} style={{ width: 12, height: m.menteeHeight, background: "#f7f5ef" }} />
+                      <div key={m.month} className="analytics-chart-col">
+                        <div title={`${t.mentors} ${m.month}`} className="analytics-bar mentors" style={{ height: m.mentorHeight }} />
+                        <div title={`${t.mentees} ${m.month}`} className="analytics-bar mentees" style={{ height: m.menteeHeight }} />
+                        <small>{m.month.slice(5)}</small>
                       </div>
                     ))}
                   </div>
-                  <p>{t.chartLegend}</p>
+                  <p className="analytics-legend">{t.chartLegend}</p>
                 </article>
-                <article className="card">
+                <article className="card analytics-card">
                   <h2>{t.monthlyActivity}</h2>
-                  {(data?.monthlyActivity || []).map((m) => (
-                    <p key={m.month}>{m.month}: {t.mentors.toLowerCase()} {m.mentors}, {t.mentees.toLowerCase()} {m.mentees}</p>
-                  ))}
+                  <div className="analytics-list">
+                    {(data?.monthlyActivity || []).map((m) => (
+                      <div className="analytics-list-row" key={m.month}>
+                        <strong>{m.month}</strong>
+                        <span>{t.mentors}: {m.mentors}</span>
+                        <span>{t.mentees}: {m.mentees}</span>
+                      </div>
+                    ))}
+                  </div>
                 </article>
               </section>
             </div>

@@ -16,8 +16,8 @@ export class AdminService {
           this.prisma.mentorApplication.count(),
           this.prisma.menteeApplication.count(),
           this.prisma.matching.count({ where: { status: MatchStatus.APPROVED } }),
-          this.prisma.mentorApplication.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
-          this.prisma.menteeApplication.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
+          this.prisma.mentorApplication.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
+          this.prisma.menteeApplication.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
           this.prisma.mentorApplication.findMany({ select: { createdAt: true } }),
           this.prisma.menteeApplication.findMany({ select: { createdAt: true } })
         ]);
@@ -116,6 +116,37 @@ export class AdminService {
     return this.prisma.menteeApplication.update({
       where: { id },
       data: payload as any
+    });
+  }
+
+  createRegistration(category: "mentor" | "mentee", payload: Record<string, unknown>) {
+    if (category === "mentor") {
+      return this.prisma.mentorApplication.create({
+        data: {
+          fullName: String(payload.fullName || ""),
+          email: String(payload.email || ""),
+          level: String(payload.level || "12e année"),
+          expertise: String(payload.expertise || "Mentorat"),
+          language: String(payload.language || "fr"),
+          city: String(payload.city || "Montreal"),
+          region: String(payload.region || "QC"),
+          availability: String(payload.availability || "Soirs"),
+          targetSpecialty: String(payload.targetSpecialty || "Médecine générale"),
+          mentorCapacity: Number(payload.mentorCapacity || 3)
+        }
+      });
+    }
+    return this.prisma.menteeApplication.create({
+      data: {
+        fullName: String(payload.fullName || ""),
+        email: String(payload.email || ""),
+        academicLevel: String(payload.academicLevel || "12e année"),
+        goals: String(payload.goals || "Orientation"),
+        language: String(payload.language || "fr"),
+        region: String(payload.region || "QC"),
+        availability: String(payload.availability || "Soirs"),
+        targetSpecialty: String(payload.targetSpecialty || "Médecine générale")
+      }
     });
   }
 

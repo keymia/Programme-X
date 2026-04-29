@@ -11,7 +11,7 @@
   --wine: #cd6d79;
   --blue: #67a8ff;
   --line: #252c38;
-  --shadow: 0 24px 50px rgba(0, 0, 0, 0.44);
+  --shadow: 0 28px 70px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -29,7 +29,7 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: Inter, "Avenir Next", "Segoe UI", sans-serif;
+  font-family: "Avenir Next", Inter, "Segoe UI", sans-serif;
 }
 
 body {
@@ -78,7 +78,7 @@ textarea {
   top: 0;
   z-index: 100;
   border-bottom: 1px solid var(--line);
-  background: rgba(5, 6, 8, 0.92);
+  background: rgba(5, 6, 8, 0.86);
   backdrop-filter: blur(14px);
 }
 
@@ -95,7 +95,7 @@ textarea {
   align-items: center;
   gap: 10px;
   color: var(--ink);
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0;
   white-space: nowrap;
   text-transform: uppercase;
@@ -194,7 +194,7 @@ textarea {
   align-items: flex-end;
   padding: clamp(26px, 5vw, 58px);
   background:
-    linear-gradient(90deg, rgba(5, 4, 3, 0.88), rgba(5, 4, 3, 0.54) 44%, rgba(5, 4, 3, 0.08)),
+    linear-gradient(90deg, rgba(6, 6, 6, 0.78), rgba(6, 6, 6, 0.42) 46%, rgba(6, 6, 6, 0.05)),
     url("/images/medical-mentorship-hero.jpg") center / cover;
   box-shadow: var(--shadow);
 }
@@ -276,9 +276,9 @@ h2 {
 h1 {
   margin: 0 0 16px;
   font-size: clamp(2.45rem, 6vw, 5.5rem);
-  line-height: 0.98;
+  line-height: 1.02;
   max-width: 880px;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 h2 {
@@ -307,19 +307,18 @@ p {
   align-items: center;
   justify-content: center;
   padding: 11px 16px;
-  border: 1px solid var(--teal);
+  border: 1px solid var(--gold);
   border-radius: 8px;
-  background: var(--teal);
+  background: var(--gold);
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
   transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
 }
 
 .btn:hover {
   transform: translateY(-1px);
-  background: var(--teal-dark);
-  border-color: var(--teal-dark);
+  filter: brightness(1.06);
 }
 
 .btn:disabled {
@@ -329,7 +328,7 @@ p {
 }
 
 .btn.alt {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.02);
   color: var(--ink);
   border-color: var(--line);
 }
@@ -377,9 +376,9 @@ p {
 
 .card {
   min-width: 0;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(216, 171, 97, 0.18);
   border-radius: 8px;
-  background: var(--surface);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.02), rgba(216, 171, 97, 0.04));
   padding: clamp(18px, 2.4vw, 26px);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
@@ -706,25 +705,64 @@ p {
   margin-top: 0;
   display: grid;
   gap: 8px;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.01);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
 }
+
+.admin-login-page {
+  min-height: calc(100vh - 140px);
+  display: grid;
+  align-items: center;
+}
+
+.admin-login-hero {
+  max-width: 420px;
+  margin: 0 auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.admin-login-hero h1 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.15;
+  margin-bottom: 14px;
+}
+
+.admin-login-hero::after {
+  content: none;
+}
+
 
 .admin-login-form label {
   font-size: 0.78rem;
-  color: var(--muted);
+  color: #d6dde8;
   font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .admin-login-form input {
   min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--surface);
+  background: rgba(12, 16, 22, 0.95);
   color: var(--ink);
   padding: 10px 12px;
+}
+
+.admin-login-form input:focus-visible {
+  outline: 2px solid rgba(216, 171, 97, 0.5);
+  outline-offset: 1px;
+}
+
+.admin-login-form .btn {
+  margin-top: 4px;
+  min-height: 42px;
 }
 
 .admin-main {
@@ -741,6 +779,92 @@ p {
 
 .admin-kpis {
   margin-top: 16px;
+}
+
+.analytics-card {
+  display: grid;
+  gap: 14px;
+}
+
+.analytics-chart {
+  min-height: 190px;
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(216, 171, 97, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.analytics-chart-col {
+  display: grid;
+  justify-items: center;
+  align-items: end;
+  gap: 5px;
+  min-width: 30px;
+}
+
+.analytics-chart-col small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.analytics-bar {
+  width: 12px;
+  border-radius: 6px 6px 2px 2px;
+  min-height: 6px;
+}
+
+.analytics-bar.mentors {
+  background: linear-gradient(180deg, #e6bf7f, #c39543);
+}
+
+.analytics-bar.mentees {
+  background: linear-gradient(180deg, #f8fbff, #cfd8e6);
+}
+
+.analytics-legend {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.analytics-list {
+  display: grid;
+  gap: 8px;
+}
+
+.analytics-list-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(216, 171, 97, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.analytics-list-row strong {
+  color: var(--ink);
+}
+
+.registration-add-row {
+  margin-top: -4px;
+  margin-bottom: 8px;
+}
+
+.admin-more-btn {
+  background: #d8ab61;
+  border-color: #d8ab61;
+  color: #111;
+}
+
+.admin-less-btn {
+  border-color: #3b4556;
+  color: #c7d0df;
+  background: rgba(59, 69, 86, 0.25);
 }
 
 .admin-main [id] {

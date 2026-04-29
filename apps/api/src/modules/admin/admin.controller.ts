@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Res, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { AdminService } from "./admin.service";
 import { Roles } from "../auth/roles.decorator";
@@ -37,6 +37,13 @@ export class AdminController {
     @Body() body: Record<string, unknown>
   ) {
     return this.adminService.updateRegistration(category, id, body);
+  }
+
+  @Post("registrations/:category")
+  @UseGuards(AuthGuard("jwt"), RolesGuard)
+  @Roles("ADMIN", "SUPER_ADMIN")
+  createRegistration(@Param("category") category: "mentor" | "mentee", @Body() body: Record<string, unknown>) {
+    return this.adminService.createRegistration(category, body);
   }
 
   @Delete("registrations/:category/:id")
