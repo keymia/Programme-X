@@ -755,6 +755,38 @@ p {
   padding: 10px 12px;
 }
 
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #0b0f14;
+  font-size: 0.95rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  background: rgba(11, 15, 20, 0.08);
+  color: #000000;
+}
+
 .admin-login-form input:focus-visible {
   outline: 2px solid rgba(216, 171, 97, 0.5);
   outline-offset: 1px;

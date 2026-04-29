@@ -594,6 +594,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginEmail, setLoginEmail] = useState("admin@blackmedcollective.com");
   const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [activeView, setActiveView] = useState<AdminView>("overview");
@@ -1020,7 +1021,23 @@ export default function AdminPage() {
             <label htmlFor="admin-email">{lang === "fr" ? "Email" : "Email"}</label>
             <input id="admin-email" type="email" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} required />
             <label htmlFor="admin-password">{lang === "fr" ? "Mot de passe" : "Password"}</label>
-            <input id="admin-password" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} required />
+            <div className="password-field">
+              <input
+                id="admin-password"
+                type={showLoginPassword ? "text" : "password"}
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                aria-label={showLoginPassword ? (lang === "fr" ? "Masquer le mot de passe" : "Hide password") : (lang === "fr" ? "Afficher le mot de passe" : "Show password")}
+                onClick={() => setShowLoginPassword((v) => !v)}
+              >
+                <span aria-hidden="true">{showLoginPassword ? "◉" : "◌"}</span>
+              </button>
+            </div>
             {loginError ? <p className="form-help" role="alert">{loginError}</p> : null}
             <button className="btn" type="submit" disabled={loginBusy}>
               {loginBusy ? (lang === "fr" ? "Connexion..." : "Signing in...") : (lang === "fr" ? "Se connecter" : "Sign in")}
