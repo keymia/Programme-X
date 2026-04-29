@@ -287,6 +287,56 @@ async function main() {
 
   await prisma.mentorApplication.createMany({ data: mentorSeed });
   await prisma.menteeApplication.createMany({ data: menteeSeed });
+  await prisma.contentItem.createMany({
+    data: [
+      {
+        type: "NEWS",
+        title: "Bienvenue sur Black Med Collective",
+        slug: "bienvenue-black-med-collective",
+        summary: "Lancement officiel de la plateforme de mentorat.",
+        body: "Nous accompagnons les mentors et mentorés avec une approche institutionnelle et moderne.",
+        publishStatus: "PUBLISHED",
+        publishedAt: new Date()
+      },
+      {
+        type: "EVENT",
+        title: "Session de mentorat clinique",
+        slug: "session-mentorat-clinique",
+        summary: "Rencontre en ligne avec les mentors seniors.",
+        body: "Échanges sur les parcours en médecine et la préparation aux étapes clés.",
+        publishStatus: "PUBLISHED",
+        publishedAt: new Date()
+      },
+      {
+        type: "FAQ",
+        title: "Comment fonctionne le jumelage ?",
+        slug: "faq-fonctionnement-jumelage",
+        summary: "Explication du processus de matching.",
+        body: "Le jumelage est calculé selon la langue, le niveau, la disponibilité, la région et la spécialité visée.",
+        publishStatus: "PUBLISHED",
+        publishedAt: new Date()
+      },
+      {
+        type: "PAGE",
+        title: "Programme de mentorat",
+        slug: "page-programme-mentorat",
+        summary: "Présentation des axes du programme.",
+        body: "Le programme couvre leadership, compétences cliniques, stratégie académique et réseau professionnel.",
+        publishStatus: "PUBLISHED",
+        publishedAt: new Date()
+      },
+      {
+        type: "PARTNER",
+        title: "Partenaire institutionnel",
+        slug: "partenaire-institutionnel-principal",
+        summary: "Partenaire engagé pour l'excellence et l'inclusion.",
+        body: "Ce partenaire soutient les activités éducatives et les parcours d'accompagnement.",
+        publishStatus: "PUBLISHED",
+        publishedAt: new Date()
+      }
+    ],
+    skipDuplicates: true
+  });
 }
 
 main()
