@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  SUPER_ADMIN
+  MEMBER
+}
+
+model User {
+  id                String        @id @default(cuid())
+  email             String        @unique
+  passwordHash      String
+  role              UserRole      @default(MEMBER)
+  isActive          Boolean       @default(true)
+  twoFactorEnabled  Boolean       @default(false)
+  twoFactorSecret   String?
+  failedLoginCount  Int           @default(0)
+  lockoutUntil      DateTime?
+  lastLoginAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  sessions          AdminSession[]
+  adminActionLogs   AdminActionLog[]
+}
+
+model AdminSession {
+  id           String   @id @default(cuid())
+  userId       String
+  jwtId        String   @unique
+  refreshHash  String
+  userAgent    String?
+  ipAddress    String?
+  isRevoked    Boolean  @default(false)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminActionLog {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String
+  resource    String
+  meta        Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MentorApplication {
+  id           String   @id @default(cuid())
+  fullName     String
+  email        String
+  level        String
+  expertise    String
+  language     String
+  city         String
+  region       String
+  availability String
+  targetSpecialty String
+  mentorCapacity Int    @default(3)
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  matches      Matching[] @relation("MentorMatches")
+}
+
+model MenteeApplication {
+  id             String   @id @default(cuid())
+  fullName       String
+  email          String
+  academicLevel  String
+  goals          String
+  language       String
+  region         String
+  availability   String
+  targetSpecialty String
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  matches        Matching[] @relation("MenteeMatches")
+}
+
+enum MatchStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+  OVERRIDDEN
+}
+
+enum ContentType {
+  NEWS
+  EVENT
+  PHOTO
+  PAGE
+  FAQ
+  PARTNER
+  HOMEPAGE_BANNER
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Matching {
+  id            String          @id @default(cuid())
+  mentorId      String
+  menteeId      String
+  score         Int
+  status        MatchStatus     @default(PROPOSED)
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  mentor        MentorApplication @relation("MentorMatches", fields: [mentorId], references: [id], onDelete: Cascade)
+  mentee        MenteeApplication @relation("MenteeMatches", fields: [menteeId], references: [id], onDelete: Cascade)
+
+  @@unique([mentorId, menteeId])
+}
+
+model ContentItem {
+  id            String        @id @default(cuid())
+  type          ContentType
+  title         String
+  slug          String        @unique
+  summary       String?
+  body          String?
+  mediaUrl      String?
+  externalUrl   String?
+  metadata      Json?
+  publishStatus PublishStatus @default(DRAFT)
+  publishedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}

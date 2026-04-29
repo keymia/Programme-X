@@ -1,0 +1,15 @@
+node_modules
+.next
+dist
+coverage
+.turbo
+.vercel
+.DS_Store
+apps/api/src/generated/prisma
+.env
+.env.*
+!.env.example
+package-lock.json
+yarn.lock
+*.log
+prisma/dev.db
