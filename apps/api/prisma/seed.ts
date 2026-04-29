@@ -255,6 +255,36 @@ async function main() {
     }
   ];
 
+  const memberUsers = [
+    "aya.baptiste",
+    "noah.kabeya",
+    "leila.konate",
+    "samuel.okafor",
+    "jade.moukouri",
+    "kevin.adjei",
+    "sabrina.ngoy",
+    "micah.boniface",
+    "nora.ekwe",
+    "daniel.mutombo"
+  ];
+
+  await Promise.all(
+    memberUsers.map((username) =>
+      prisma.user.upsert({
+        where: { email: `${username}@${demoDomain}` },
+        create: {
+          email: `${username}@${demoDomain}`,
+          passwordHash,
+          role: "MEMBER"
+        },
+        update: {
+          passwordHash,
+          role: "MEMBER"
+        }
+      })
+    )
+  );
+
   await prisma.mentorApplication.createMany({ data: mentorSeed });
   await prisma.menteeApplication.createMany({ data: menteeSeed });
 }
