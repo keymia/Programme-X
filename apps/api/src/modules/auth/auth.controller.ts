@@ -12,7 +12,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post("login")
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
   login(@Body() dto: LoginDto, @Req() req: { ip?: string; headers: { "user-agent"?: string } }) {
     return this.authService.login(dto, req.ip, req.headers["user-agent"]);
   }

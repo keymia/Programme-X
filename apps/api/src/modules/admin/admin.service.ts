@@ -39,14 +39,28 @@ export class AdminService {
         if (map.has(key)) map.get(key)!.mentees++;
       }
 
-      return {
-        totals: { totalMentors, totalMentees, activeMatches },
-        recentRegistrations: {
-          mentors: recentMentors.map((x) => ({ name: x.fullName, email: x.email, createdAt: x.createdAt })),
-          mentees: recentMentees.map((x) => ({ name: x.fullName, email: x.email, createdAt: x.createdAt }))
-        },
-        monthlyActivity: Array.from(map.values())
-      };
+        return {
+          totals: { totalMentors, totalMentees, activeMatches },
+          recentRegistrations: {
+          mentors: recentMentors.map((x) => ({
+            id: x.id,
+            name: x.fullName,
+            email: x.email,
+            createdAt: x.createdAt,
+            region: x.region,
+            language: x.language
+          })),
+          mentees: recentMentees.map((x) => ({
+            id: x.id,
+            name: x.fullName,
+            email: x.email,
+            createdAt: x.createdAt,
+            region: x.region,
+            language: x.language
+          }))
+          },
+          monthlyActivity: Array.from(map.values())
+        };
     } catch (error) {
       this.logger.warn("Dashboard fallback: database unavailable.");
       this.logger.debug(error);
@@ -78,5 +92,35 @@ export class AdminService {
     XLSX.utils.book_append_sheet(wb, monthly, "Monthly");
     XLSX.utils.book_append_sheet(wb, recent, "Recent");
     return XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+  }
+
+  async listRegistrations() {
+    const [mentors, mentees] = await Promise.all([
+      this.prisma.mentorApplication.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
+      this.prisma.menteeApplication.findMany({ orderBy: { createdAt: "desc" }, take: 100 })
+    ]);
+    return { mentors, mentees };
+  }
+
+  updateRegistration(
+    category: "mentor" | "mentee",
+    id: string,
+    payload: Record<string, unknown>
+  ) {
+    if (category === "mentor") {
+      return this.prisma.mentorApplication.update({
+        where: { id },
+        data: payload as any
+      });
+    }
+    return this.prisma.menteeApplication.update({
+      where: { id },
+      data: payload as any
+    });
+  }
+
+  deleteRegistration(category: "mentor" | "mentee", id: string) {
+    if (category === "mentor") return this.prisma.mentorApplication.delete({ where: { id } });
+    return this.prisma.menteeApplication.delete({ where: { id } });
   }
 }

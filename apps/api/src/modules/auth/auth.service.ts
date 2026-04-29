@@ -14,6 +14,20 @@ export class AuthService {
     private readonly prisma: PrismaService
   ) {}
 
+  private async rejectLogin(
+    reason: string,
+    userId?: string,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<never> {
+    if (userId) {
+      await this.prisma.adminActionLog.create({
+        data: { userId, action: "LOGIN_FAILED", resource: "AUTH", meta: { reason }, ipAddress, userAgent }
+      });
+    }
+    throw new UnauthorizedException("Invalid credentials");
+  }
+
   private generate2FASecret(length = 20): string {
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     const bytes = crypto.randomBytes(length);
@@ -87,19 +101,21 @@ export class AuthService {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) throw new UnauthorizedException("Invalid credentials");
     if (user.lockoutUntil && user.lockoutUntil > new Date()) {
-      throw new UnauthorizedException("Account temporarily locked");
+      await this.rejectLogin("LOCKED", user.id, ipAddress, userAgent);
     }
     const match = await bcrypt.compare(dto.password, user.passwordHash);
     if (!match) {
       const failedLoginCount = user.failedLoginCount + 1;
       const lockoutUntil = failedLoginCount >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null;
       await this.usersService.updateFailedLogin(user.id, failedLoginCount, lockoutUntil);
-      throw new UnauthorizedException("Invalid credentials");
+      await this.rejectLogin("BAD_PASSWORD", user.id, ipAddress, userAgent);
     }
-    if (user.role !== "ADMIN") throw new UnauthorizedException("Admin only");
-    if (!user.isActive) throw new UnauthorizedException("Account disabled");
+    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+      await this.rejectLogin("ROLE_BLOCKED", user.id, ipAddress, userAgent);
+    }
+    if (!user.isActive) await this.rejectLogin("INACTIVE", user.id, ipAddress, userAgent);
 
-    if (user.twoFactorEnabled) {
+    if (user.twoFactorEnabled && user.twoFactorSecret) {
       return { requires2FA: true, userId: user.id };
     }
 

@@ -515,8 +515,8 @@ const buildTranslationText = (item: ContentItem, guide: ContentGuide) => {
 type DashboardData = {
   totals: { totalMentors: number; totalMentees: number; activeMatches: number };
   recentRegistrations: {
-    mentors: { name: string; email: string; createdAt: string }[];
-    mentees: { name: string; email: string; createdAt: string }[];
+    mentors: { id?: string; name: string; email: string; createdAt: string; region?: string; language?: string }[];
+    mentees: { id?: string; name: string; email: string; createdAt: string; region?: string; language?: string }[];
   };
   monthlyActivity: { month: string; mentors: number; mentees: number }[];
 };
@@ -540,14 +540,17 @@ const toNumber = (value: unknown, fallback = 0): number => {
 
 const toString = (value: unknown): string => (typeof value === "string" ? value : "");
 
-const normalizePersonRows = (value: unknown): { name: string; email: string; createdAt: string }[] => {
+const normalizePersonRows = (value: unknown): { id?: string; name: string; email: string; createdAt: string; region?: string; language?: string }[] => {
   if (!Array.isArray(value)) return [];
   return value.map((row) => {
     const record = toRecord(row);
     return {
+      id: toString(record?.id),
       name: toString(record?.name),
       email: toString(record?.email),
-      createdAt: toString(record?.createdAt)
+      createdAt: toString(record?.createdAt),
+      region: toString(record?.region),
+      language: toString(record?.language)
     };
   });
 };
@@ -586,6 +589,12 @@ const normalizeDashboardData = (value: unknown): DashboardData | null => {
 
 export default function AdminPage() {
   const [lang, setLang] = useState<Lang>("fr");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("admin@blackmedcollective.com");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const [activeView, setActiveView] = useState<AdminView>("overview");
   const [data, setData] = useState<DashboardData | null>(null);
   const [contentType, setContentType] = useState<ContentType>("NEWS");
@@ -599,6 +608,13 @@ export default function AdminPage() {
   const [translations, setTranslations] = useState<TranslationState>({});
   const [activeBlockIndex, setActiveBlockIndex] = useState(0);
   const [similarSource, setSimilarSource] = useState<ContentItem | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalCategory, setModalCategory] = useState<"mentor" | "mentee">("mentor");
+  const [modalRecordId, setModalRecordId] = useState("");
+  const [modalName, setModalName] = useState("");
+  const [modalEmail, setModalEmail] = useState("");
+  const [modalBusy, setModalBusy] = useState(false);
+  const [modalError, setModalError] = useState("");
   const t = dict[lang].admin;
   const guide = contentGuides[lang][contentType];
   const editorText = contentEditorCopy[lang];
@@ -633,6 +649,8 @@ export default function AdminPage() {
     const sync = () => {
       const saved = localStorage.getItem("lang");
       setLang(saved === "en" ? "en" : "fr");
+      const token = localStorage.getItem("adminAccessToken") || localStorage.getItem("accessToken");
+      setIsAuthenticated(Boolean(token));
     };
     sync();
     window.addEventListener("lang-change", sync);
@@ -644,6 +662,12 @@ export default function AdminPage() {
       .then((r) => r.json())
       .then((payload) => setData(normalizeDashboardData(payload)))
       .catch(() => setData(null));
+  }, []);
+
+  const refreshDashboard = useCallback(async () => {
+    const response = await fetch(`${apiBase}/api/v1/admin/dashboard`);
+    const payload = await response.json();
+    setData(normalizeDashboardData(payload));
   }, []);
 
   const refreshContentItems = useCallback(async (pageKey: EditablePageKey = selectedPage) => {
@@ -690,6 +714,93 @@ export default function AdminPage() {
 
   const downloadExcel = () => {
     window.open(`${apiBase}/api/v1/admin/export`, "_blank");
+  };
+
+  const loginAdmin = async (event?: React.FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    if (!loginEmail || !loginPassword) return;
+    setLoginBusy(true);
+    setLoginError("");
+    try {
+      const response = await fetch(`${apiBase}/api/v1/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword })
+      });
+      if (!response.ok) throw new Error(lang === "fr" ? "Connexion échouée." : "Login failed.");
+      const payload = await response.json();
+      localStorage.setItem("adminAccessToken", payload.accessToken || "");
+      if (payload.refreshToken) localStorage.setItem("adminRefreshToken", payload.refreshToken);
+      setIsAuthenticated(Boolean(payload.accessToken));
+      setIsLoginOpen(false);
+      setLoginPassword("");
+      setContentNotice(lang === "fr" ? "Connecté." : "Signed in.");
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : lang === "fr" ? "Erreur réseau." : "Network error.");
+    } finally {
+      setLoginBusy(false);
+    }
+  };
+
+  const logoutAdmin = () => {
+    localStorage.removeItem("adminAccessToken");
+    localStorage.removeItem("adminRefreshToken");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    setIsAuthenticated(false);
+    setIsLoginOpen(false);
+    setContentNotice(lang === "fr" ? "Déconnecté." : "Signed out.");
+  };
+
+  const openRegistrationModal = (category: "mentor" | "mentee", row: { id?: string; name: string; email: string }) => {
+    if (!row.id) return;
+    setModalCategory(category);
+    setModalRecordId(row.id);
+    setModalName(row.name);
+    setModalEmail(row.email);
+    setModalError("");
+    setModalOpen(true);
+  };
+
+  const saveRegistrationModal = async () => {
+    if (!modalRecordId) return;
+    setModalBusy(true);
+    setModalError("");
+    try {
+      const response = await fetch(`${apiBase}/api/v1/admin/registrations/${modalCategory}/${modalRecordId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ fullName: modalName, email: modalEmail })
+      });
+      if (!response.ok) {
+        if (response.status === 401) throw new Error(lang === "fr" ? "Session expirée. Reconnectez-vous." : "Session expired. Please sign in again.");
+        throw new Error(lang === "fr" ? "Échec de la mise à jour." : "Update failed.");
+      }
+      setModalOpen(false);
+      await refreshDashboard();
+    } catch (error) {
+      setModalError(error instanceof Error ? error.message : lang === "fr" ? "Erreur réseau." : "Network error.");
+    } finally {
+      setModalBusy(false);
+    }
+  };
+
+  const deleteRegistrationRow = async (category: "mentor" | "mentee", id?: string) => {
+    if (!id) return;
+    setContentNotice("");
+    try {
+      const response = await fetch(`${apiBase}/api/v1/admin/registrations/${category}/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+      if (!response.ok) {
+        if (response.status === 401) throw new Error(lang === "fr" ? "Session expirée. Reconnectez-vous." : "Session expired. Please sign in again.");
+        throw new Error(lang === "fr" ? "Suppression impossible." : "Delete failed.");
+      }
+      await refreshDashboard();
+    } catch (error) {
+      setContentNotice(error instanceof Error ? error.message : lang === "fr" ? "Erreur réseau." : "Network error.");
+    }
   };
 
   const buildContentPayload = (fd: FormData, type: ContentType, existingMetadata?: ContentMetadata | null) => {
@@ -854,6 +965,44 @@ export default function AdminPage() {
             ))}
           </nav>
           <button className="btn admin-export" onClick={downloadExcel} type="button">{t.export}</button>
+          <div className="admin-auth-box">
+            <p className="form-help">{isAuthenticated ? (lang === "fr" ? "Session active" : "Session active") : (lang === "fr" ? "Session inactive" : "Session inactive")}</p>
+            {!isAuthenticated ? (
+              <>
+                <button className="btn" type="button" onClick={() => setIsLoginOpen((v) => !v)}>
+                  {lang === "fr" ? "Connexion admin" : "Admin sign in"}
+                </button>
+                {isLoginOpen ? (
+                  <form className="admin-login-form" onSubmit={loginAdmin}>
+                    <label htmlFor="admin-login-email">{lang === "fr" ? "Email" : "Email"}</label>
+                    <input
+                      id="admin-login-email"
+                      type="email"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      required
+                    />
+                    <label htmlFor="admin-login-password">{lang === "fr" ? "Mot de passe" : "Password"}</label>
+                    <input
+                      id="admin-login-password"
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      required
+                    />
+                    {loginError ? <p className="form-help" role="alert">{loginError}</p> : null}
+                    <button className="btn" type="submit" disabled={loginBusy}>
+                      {loginBusy ? (lang === "fr" ? "Connexion..." : "Signing in...") : (lang === "fr" ? "Se connecter" : "Sign in")}
+                    </button>
+                  </form>
+                ) : null}
+              </>
+            ) : (
+              <button className="btn alt" type="button" onClick={logoutAdmin}>
+                {lang === "fr" ? "Déconnexion" : "Sign out"}
+              </button>
+            )}
+          </div>
         </aside>
 
         <div className="admin-main">
@@ -878,13 +1027,25 @@ export default function AdminPage() {
               <article className="card">
                 <h2>{t.recentRegistrations}</h2>
                 <p>{t.mentors}</p>
-                {(data?.recentRegistrations.mentors || []).map((x) => (
-                  <p key={`${x.email}-${x.createdAt}`}>{x.name} - {x.email}</p>
-                ))}
+                <div className="content-list">
+                  {(data?.recentRegistrations.mentors || []).map((x) => (
+                    <div className="content-row" key={`${x.id || x.email}-${x.createdAt}`}>
+                      <span>{x.name} - {x.email}</span>
+                      <button className="btn alt" type="button" onClick={() => openRegistrationModal("mentor", x)}>{lang === "fr" ? "Modifier" : "Edit"}</button>
+                      <button className="btn alt" type="button" onClick={() => deleteRegistrationRow("mentor", x.id)}>{lang === "fr" ? "Supprimer" : "Delete"}</button>
+                    </div>
+                  ))}
+                </div>
                 <p>{t.mentees}</p>
-                {(data?.recentRegistrations.mentees || []).map((x) => (
-                  <p key={`${x.email}-${x.createdAt}`}>{x.name} - {x.email}</p>
-                ))}
+                <div className="content-list">
+                  {(data?.recentRegistrations.mentees || []).map((x) => (
+                    <div className="content-row" key={`${x.id || x.email}-${x.createdAt}`}>
+                      <span>{x.name} - {x.email}</span>
+                      <button className="btn alt" type="button" onClick={() => openRegistrationModal("mentee", x)}>{lang === "fr" ? "Modifier" : "Edit"}</button>
+                      <button className="btn alt" type="button" onClick={() => deleteRegistrationRow("mentee", x.id)}>{lang === "fr" ? "Supprimer" : "Delete"}</button>
+                    </div>
+                  ))}
+                </div>
               </article>
               <article className="card">
                 <h2>{t.totalMentors}</h2>
@@ -892,6 +1053,28 @@ export default function AdminPage() {
                 <p>{t.totalMentees}: {data?.totals.totalMentees ?? "--"}</p>
               </article>
             </section>
+          ) : null}
+
+          {modalOpen ? (
+            <div className="modal-backdrop" role="dialog" aria-modal="true">
+              <div className="modal-card">
+                <div className="modal-card-head">
+                  <h3>{lang === "fr" ? "Modifier l'inscription" : "Edit registration"}</h3>
+                  <span className="modal-chip">{modalCategory}</span>
+                </div>
+                <div className="modal-card-body">
+                  <label>{lang === "fr" ? "Nom complet" : "Full name"}</label>
+                  <input value={modalName} onChange={(e) => setModalName(e.target.value)} />
+                  <label>Email</label>
+                  <input value={modalEmail} onChange={(e) => setModalEmail(e.target.value)} />
+                  {modalError ? <p className="form-help" role="alert">{modalError}</p> : null}
+                  <div className="editor-actions">
+                    <button className="btn" type="button" onClick={saveRegistrationModal} disabled={modalBusy}>{modalBusy ? (lang === "fr" ? "Enregistrement..." : "Saving...") : (lang === "fr" ? "Enregistrer" : "Save")}</button>
+                    <button className="btn alt" type="button" onClick={() => setModalOpen(false)} disabled={modalBusy}>{lang === "fr" ? "Annuler" : "Cancel"}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : null}
 
           {activeView === "analytics" ? (
@@ -1121,6 +1304,56 @@ export default function AdminPage() {
 
               {!isContentLoading && zoneContentItems.length === 0 ? (
                 <p className="content-empty">{editorText.noZoneElement}</p>
+              ) : null}
+
+              {zoneContentItems.length > 0 ? (
+                <section className="content-table-card" aria-label={lang === "fr" ? "Données de contenu" : "Content data"}>
+                  <div className="content-table-head">
+                    <h3>{lang === "fr" ? "Données de la zone" : "Zone data"}</h3>
+                    <small>
+                      {zoneContentItems.length} {lang === "fr" ? "éléments" : "items"}
+                    </small>
+                  </div>
+                  <div className="content-table-wrap">
+                    <table className="content-table">
+                      <thead>
+                        <tr>
+                          <th>{lang === "fr" ? "Position" : "Position"}</th>
+                          <th>{lang === "fr" ? "Type" : "Type"}</th>
+                          <th>{lang === "fr" ? "Titre" : "Title"}</th>
+                          <th>{lang === "fr" ? "Statut" : "Status"}</th>
+                          <th>{lang === "fr" ? "Actions" : "Actions"}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orderedContentItems.map((item, index) => (
+                          <tr key={`row-${item.id}`} className={index === activeBlockIndex ? "active" : ""}>
+                            <td>{String(displayPositionFromMetadata(item.metadata)).padStart(2, "0")}</td>
+                            <td>{contentTypeLabels[lang][item.type]}</td>
+                            <td>{item.title}</td>
+                            <td>{publishStatusLabels[lang][item.publishStatus]}</td>
+                            <td>
+                              <div className="content-row-actions">
+                                <button
+                                  className="btn alt"
+                                  type="button"
+                                  onClick={() => setActiveBlockIndex(index)}
+                                >
+                                  {lang === "fr" ? "Modifier" : "Edit"}
+                                </button>
+                                {item.isTemplate ? null : (
+                                  <button className="btn alt" type="button" onClick={() => deleteContent(item)}>
+                                    {lang === "fr" ? "Supprimer" : "Delete"}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
               ) : null}
 
               <div className="page-block-list">
