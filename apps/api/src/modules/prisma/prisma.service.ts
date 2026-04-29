@@ -10,13 +10,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor() {
     const connectionString = process.env.DATABASE_URL;
     const hasDatabaseUrl = typeof connectionString === "string" && connectionString.length > 0;
-    const options: any = hasDatabaseUrl
-      ? {
-          adapter: new PrismaPg({
-            connectionString
-          })
-        }
-      : {};
+    const options: any = {
+      adapter: new PrismaPg({
+        connectionString: hasDatabaseUrl ? connectionString : "postgresql://invalid:invalid@localhost:5432/invalid"
+      })
+    };
     super(options);
     this.hasDatabaseUrl = hasDatabaseUrl;
   }
