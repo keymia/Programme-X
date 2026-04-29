@@ -5,16 +5,28 @@ import { PrismaClient } from "../../generated/prisma/client";
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
+  private readonly hasDatabaseUrl: boolean;
 
   constructor() {
+    const connectionString = process.env.DATABASE_URL;
+    const hasDatabaseUrl = typeof connectionString === "string" && connectionString.length > 0;
     super({
-      adapter: new PrismaPg({
-        connectionString: process.env.DATABASE_URL ?? ""
-      })
+      ...(hasDatabaseUrl
+        ? {
+            adapter: new PrismaPg({
+              connectionString
+            })
+          }
+        : {})
     });
+    this.hasDatabaseUrl = hasDatabaseUrl;
   }
 
   async onModuleInit(): Promise<void> {
+    if (!this.hasDatabaseUrl) {
+      this.logger.warn("DATABASE_URL is missing. Prisma connection is disabled.");
+      return;
+    }
     try {
       await this.$connect();
     } catch (error) {
