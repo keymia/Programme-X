@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { MatchStatus } from "../../generated/prisma/client";
+import { MatchStatus } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { PrismaService } from "../prisma/prisma.service";
 

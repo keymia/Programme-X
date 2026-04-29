@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { MatchStatus } from "../../generated/prisma/client";
+import { MatchStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 

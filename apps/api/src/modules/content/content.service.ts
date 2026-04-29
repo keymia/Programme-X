@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ContentType, PublishStatus } from "../../generated/prisma/client";
+import { ContentType, PublishStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { UpsertContentDto } from "./dto/upsert-content.dto";
 

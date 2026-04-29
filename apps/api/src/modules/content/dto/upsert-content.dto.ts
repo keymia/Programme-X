@@ -1,5 +1,5 @@
 import { IsEnum, IsObject, IsOptional, IsString, MaxLength } from "class-validator";
-import { ContentType, Prisma, PublishStatus } from "../../../generated/prisma/client";
+import { ContentType, Prisma, PublishStatus } from "@prisma/client";
 
 export class UpsertContentDto {
   @IsEnum(ContentType)
