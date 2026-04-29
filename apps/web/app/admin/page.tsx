@@ -625,6 +625,10 @@ export default function AdminPage() {
   const [addEmail, setAddEmail] = useState("");
   const [mentorRowsVisible, setMentorRowsVisible] = useState(5);
   const [menteeRowsVisible, setMenteeRowsVisible] = useState(5);
+  const mentorTotal = data?.recentRegistrations.mentors?.length || 0;
+  const menteeTotal = data?.recentRegistrations.mentees?.length || 0;
+  const mentorStep = mentorRowsVisible >= 10 ? 20 : 10;
+  const menteeStep = menteeRowsVisible >= 10 ? 20 : 10;
   const t = dict[lang].admin;
   const guide = contentGuides[lang][contentType];
   const editorText = contentEditorCopy[lang];
@@ -1102,10 +1106,10 @@ export default function AdminPage() {
                   <button
                     className="btn admin-more-btn"
                     type="button"
-                    onClick={() => setMentorRowsVisible((v) => v + 5)}
-                    disabled={(data?.recentRegistrations.mentors?.length || 0) <= mentorRowsVisible}
+                    onClick={() => setMentorRowsVisible((v) => v + mentorStep)}
+                    disabled={mentorTotal <= mentorRowsVisible}
                   >
-                    {lang === "fr" ? "Afficher plus" : "Show more"}
+                    {lang === "fr" ? `Afficher +${mentorStep}` : `Show +${mentorStep}`}
                   </button>
                   <button
                     className="btn alt admin-less-btn"
@@ -1139,10 +1143,10 @@ export default function AdminPage() {
                   <button
                     className="btn admin-more-btn"
                     type="button"
-                    onClick={() => setMenteeRowsVisible((v) => v + 5)}
-                    disabled={(data?.recentRegistrations.mentees?.length || 0) <= menteeRowsVisible}
+                    onClick={() => setMenteeRowsVisible((v) => v + menteeStep)}
+                    disabled={menteeTotal <= menteeRowsVisible}
                   >
-                    {lang === "fr" ? "Afficher plus" : "Show more"}
+                    {lang === "fr" ? `Afficher +${menteeStep}` : `Show +${menteeStep}`}
                   </button>
                   <button
                     className="btn alt admin-less-btn"

@@ -851,8 +851,19 @@ p {
 }
 
 .registration-add-row {
-  margin-top: -4px;
-  margin-bottom: 8px;
+  margin-top: 12px;
+  margin-bottom: 18px;
+}
+
+.registration-column {
+  display: grid;
+  align-content: start;
+  gap: 0;
+}
+
+.registration-column .editor-actions {
+  margin-top: 12px;
+  margin-bottom: 6px;
 }
 
 .admin-more-btn {

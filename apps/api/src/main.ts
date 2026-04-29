@@ -9,6 +9,15 @@ let cachedServer: any;
 
 async function createApp() {
   const app = await NestFactory.create(AppModule, { bodyParser: true });
+  const allowedOriginsRaw =
+    process.env.CORS_ORIGIN ||
+    process.env.CORS_ORIGINS ||
+    "http://localhost:3000";
+  const allowedOrigins = allowedOriginsRaw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.use(helmet());
   app.use(
     rateLimit({
@@ -19,7 +28,7 @@ async function createApp() {
     })
   );
   app.enableCors({
-    origin: (process.env.CORS_ORIGINS || "http://localhost:3000").split(","),
+    origin: allowedOrigins,
     credentials: true
   });
   app.setGlobalPrefix("api/v1");
